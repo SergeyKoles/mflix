@@ -5,8 +5,8 @@ import com.mongodb.WriteConcern;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.model.UpdateOptions;
-import com.mongodb.client.model.Updates;
 import com.mongodb.client.result.DeleteResult;
+import com.mongodb.client.result.UpdateResult;
 import mflix.api.models.Session;
 import mflix.api.models.User;
 import org.bson.Document;
@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Configuration;
 import java.util.Map;
 
 import static com.mongodb.client.model.Filters.eq;
+import static com.mongodb.client.model.Updates.set;
 import static org.bson.codecs.configuration.CodecRegistries.fromProviders;
 import static org.bson.codecs.configuration.CodecRegistries.fromRegistries;
 
@@ -74,7 +75,7 @@ public class UserDao extends AbstractMFlixDao {
      */
     public boolean createUserSession(String userId, String jwt) {
         Bson updateFilter = new Document("user_id", userId);
-        Bson setUpdate = Updates.set("jwt", jwt);
+        Bson setUpdate = set("jwt", jwt);
         UpdateOptions options = new UpdateOptions().upsert(true);
         sessionsCollection.updateOne(updateFilter, setUpdate, options);
         return true;
@@ -145,10 +146,18 @@ public class UserDao extends AbstractMFlixDao {
      * @return User object that just been updated.
      */
     public boolean updateUserPreferences(String email, Map<String, ?> userPreferences) {
-        //TODO> Ticket: User Preferences - implement the method that allows for user preferences to
-        // be updated.
         //TODO > Ticket: Handling Errors - make this method more robust by
         // handling potential exceptions when updating an entry.
-        return false;
+        if (userPreferences == null) {
+            throw new IncorrectDaoOperation(
+                    "userPreferences cannot be set to null");
+        }
+        UpdateResult res = usersCollection
+                .updateMany(eq("email", email), set("preferences", userPreferences));
+        if (res.getModifiedCount() < 1) {
+            log.warn("User `{}` was not updated. Trying to re-write the same `preferences` field: `{}`",
+                    email, userPreferences);
+        }
+        return true;
     }
 }
