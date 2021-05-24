@@ -1,15 +1,10 @@
 package mflix.api.daos;
 
 import com.mongodb.MongoClientSettings;
-import com.mongodb.MongoWriteException;
-import com.mongodb.ReadConcern;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.Aggregates;
 import com.mongodb.client.model.Filters;
-import com.mongodb.client.model.Sorts;
 import com.mongodb.client.model.Updates;
-import com.mongodb.client.result.DeleteResult;
 import com.mongodb.client.result.UpdateResult;
 import mflix.api.models.Comment;
 import mflix.api.models.Critic;
@@ -24,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -77,11 +71,13 @@ public class CommentDao extends AbstractMFlixDao {
      */
     public Comment addComment(Comment comment) {
 
-        // TODO> Ticket - Update User reviews: implement the functionality that enables adding a new
-        // comment.
+        if (comment.getId() == null || comment.getId().isEmpty()) {
+            throw new IncorrectDaoOperation("Comment objects need to have an id field set.");
+        }
+        commentCollection.insertOne(comment);
+        return comment;
         // TODO> Ticket - Handling Errors: Implement a try catch block to
         // handle a potential write exception when given a wrong commentId.
-        return null;
     }
 
     /**
@@ -99,11 +95,27 @@ public class CommentDao extends AbstractMFlixDao {
      */
     public boolean updateComment(String commentId, String text, String email) {
 
-        // TODO> Ticket - Update User reviews: implement the functionality that enables updating an
-        // user own comments
+        Bson filter = Filters.and(
+                Filters.eq("email", email),
+                Filters.eq("_id", new ObjectId(commentId)));
+        Bson update = Updates.combine(
+                Updates.set("text", text),
+                Updates.set("date", new Date()));
+        UpdateResult res = commentCollection.updateOne(filter, update);
+
+        if (res.getMatchedCount() > 0) {
+
+            if (res.getModifiedCount() != 1) {
+                log.warn("Comment `{}` text was not updated. Is it the same text?");
+            }
+
+            return true;
+        }
+        log.error("Could not update comment `{}`. Make sure the comment is owned by `{}`",
+                commentId, email);
+        return false;
         // TODO> Ticket - Handling Errors: Implement a try catch block to
         // handle a potential write exception when given a wrong commentId.
-        return false;
     }
 
     /**
