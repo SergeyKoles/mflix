@@ -18,16 +18,20 @@ import java.util.concurrent.TimeUnit;
 @Service
 public class MongoDBConfiguration {
 
-    @Bean
-    @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
-    public MongoClient mongoClient(@Value("${spring.mongodb.uri}") String connectionString) {
+  @Bean
+  @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
+  public MongoClient mongoClient(@Value("${spring.mongodb.uri}") String connectionString) {
 
-        ConnectionString connString = new ConnectionString(connectionString);
+    ConnectionString connString = new ConnectionString(connectionString);
 
-        //TODO> Ticket: Handling Timeouts - configure the expected
-        // WriteConcern `wtimeout` and `connectTimeoutMS` values
-        MongoClient mongoClient = MongoClients.create(connectionString);
+    WriteConcern writeConcern = WriteConcern.MAJORITY.withWTimeout(2500, TimeUnit.MILLISECONDS);
 
-        return mongoClient;
-    }
+    MongoClientSettings settings = MongoClientSettings.builder()
+            .applyConnectionString(connString)
+            .writeConcern(writeConcern)
+            .build();
+    MongoClient mongoClient = MongoClients.create(settings);
+
+    return mongoClient;
+  }
 }
